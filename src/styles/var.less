@@ -1,0 +1,64 @@
+/**
+  Vant 主题映射 —— 全项目唯一允许出现 --van-* 变量的文件。
+
+  为什么写两个重复的 :root：
+  Vant 的主题变量也声明在 :root 下，普通 :root 会因为特异性相同而覆盖失败。
+  :root:root 显式提高一级优先级，确保覆盖生效。这是 Vant 官方文档给的写法。
+
+  为什么不用 <van-config-provider :theme-vars>：
+  它默认 theme-vars-scope="local"，变量落在 ConfigProvider 元素上，而 Vant 的
+  组件变量是对"最近祖先"的基础变量求值的，local scope 下改基础变量不会向下传播。
+  详见 技术选型.md 第二节和 youzan/vant#9080。
+
+  数值不写在这里 —— 一律引用 tokens.less，这样改一处全变。
+*/
+
+:root:root {
+  /* ---------- 颜色 ---------- */
+  /* primary 用 brand-deep 而不是 brand：白字在 #0E8C7F 上只有 4.13，不过 AA */
+  --van-primary-color: var(--brand-deep);
+  --van-success-color: var(--know);
+  --van-warning-color: var(--vague);
+  --van-danger-color: var(--unknown);
+
+  --van-text-color: var(--ink);
+  --van-text-color-2: var(--ink-2);
+  --van-text-color-3: var(--ink-3);
+
+  --van-background: var(--bg);
+  --van-background-2: var(--surface);
+  --van-border-color: var(--line);
+  --van-active-color: var(--line-soft);
+
+  /* 不要去改 --van-blue / --van-red / --van-green 这些原色变量：
+     改原色不会传播到引用它们的语义变量，这就是 #9080 那个坑。 */
+
+  /* ---------- 圆角（Vant 只有四档，整体上移一档） ---------- */
+  --van-radius-sm: var(--r-xs); /* 2px  → 4px */
+  --van-radius-md: var(--r-sm); /* 4px  → 8px */
+  --van-radius-lg: var(--r-md); /* 8px  → 12px */
+  /* --van-radius-max 保持 999px 不动 */
+
+  /* ---------- 字号与行高（必须成对改） ----------
+     Vant 的行高是固定 px 不是倍数，只改字号不改行高会让组件内文字错位。 */
+  --van-font-size-xs: var(--fs-label);      /* 10 → 11 */
+  --van-font-size-sm: var(--fs-aux);        /* 12 → 13 */
+  --van-font-size-md: var(--fs-ui);         /* 14 → 15 */
+  --van-font-size-lg: var(--fs-body);       /* 16 → 16，未变 */
+  --van-line-height-xs: 16px;               /* 14 → 16 */
+  --van-line-height-sm: 20px;               /* 18 → 20 */
+  --van-line-height-md: 22px;               /* 20 → 22 */
+  --van-line-height-lg: 24px;               /* 22 → 24 */
+
+  /* ---------- 字体 ----------
+     Vant 只有一个字体变量，承载不了衬线/无衬线/等宽的三角分工，
+     所以只给它无衬线栈；衬线和等宽只出现在我们自己写的组件里。 */
+  --van-base-font: var(--font-sans);
+
+  /* ---------- 动效 ---------- */
+  --van-duration-base: var(--dur-base); /* 0.3s → 0.24s */
+  --van-duration-fast: var(--dur-fast); /* 0.2s → 0.16s */
+
+  /* ---------- 组件级微调 ---------- */
+  --van-cell-group-inset-padding: 0; /* 模板自带，保留 */
+}

@@ -1,0 +1,87 @@
+/**
+  设计 token —— 唯一的数值来源。
+
+  规矩（见 工程规范.md 2.4）：
+  1. 颜色、字号、圆角、间距的具体数值只在本文件出现一次；
+  2. 组件和页面里只许写 var(--xxx)，出现字面值即违规；
+  3. Vant 的 --van-* 变量在 var.less 里引用这里的值，不重复抄数值。
+
+  取值依据见 设计系统.md，对比度数字是按 WCAG 相对亮度算过的，不要随手改。
+*/
+
+:root {
+  /* ---------- 品牌（青墨） ---------- */
+  --brand: #0E8C7F;      /* 浅底对比 3.67 —— 图标、描边、进度、大号数字 */
+  --brand-deep: #0A6B60; /* 浅底 5.69，白字在其上 6.4 —— 两个方向都过 AA */
+  --brand-soft: #E3F0EC; /* 选中态背景、图标容器底 */
+
+  /* ---------- 三档评分（品牌色即"认识"档） ---------- */
+  --know: #0E8C7F;
+  --know-text: #0A6B60;
+  --know-soft: #E3F0EC;
+  --vague: #B87D22;
+  --vague-text: #8A5E10;
+  --vague-soft: #F5EEDF;
+  --unknown: #A63D50;
+  --unknown-text: #A63D50;
+  --unknown-soft: #F7E7E9;
+
+  /* ---------- 中性（带一点青调，不是纯灰） ---------- */
+  --ink: #131E1C;     /* 主文字，对比 15.2 */
+  --ink-2: #465250;   /* 次要文字，7.13 */
+  --ink-3: #5F6B69;   /* 三级/占位，4.94 */
+  --ink-4: #7C8886;   /* 对比 3.26，只能用于非文字元素 */
+  --line: #DCE0D9;
+  --line-soft: #E8EBE4;
+  --surface: #FDFDFB; /* 卡片底（纸白） */
+  --bg: #F1F2ED;      /* 页面底（浅纸灰绿） */
+
+  /* ---------- 圆角 ---------- */
+  --r-xs: 4px;    /* 小标签 */
+  --r-sm: 8px;    /* 列表项、输入框 */
+  --r-md: 12px;   /* 按钮、选择题选项 */
+  --r-card: 14px; /* 数据卡 */
+  --r-word: 18px; /* 词卡，最大的一个，独一份 */
+  --r-pill: 999px;
+
+  /* ---------- 间距（4px 基数） ---------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px; /* 页面左右留白 */
+  --s6: 24px;
+  --s7: 32px;
+  --s8: 40px;
+  --s9: 48px;
+  --s10: 64px;
+
+  /* 发丝线宽度。单独给一个 token，是为了让"组件里不写字面值"这条规矩没有例外；
+     postcss.config.ts 里 border: true 会保住 1px 不被换算成 vw。 */
+  --hairline: 1px;
+
+  /* ---------- 字体（三角分工固定） ----------
+     字体文件尚未接入，当前会回退到系统字体。
+     IBM Plex Mono 的 IPA 字形覆盖还没验证（见 设计系统.md 第五节），
+     验证之后音标可能要单独挂一个字体。 */
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ---------- 字号 ---------- */
+  --fs-word: 40px;       /* 单词本体（衬线 600） */
+  --fs-word-long: 28px;  /* 长词自动缩到这一档 */
+  --fs-stat: 32px;       /* 大数字（等宽 600，定宽数字） */
+  --fs-title: 24px;      /* 页面标题（衬线 600） */
+  --fs-meaning: 20px;    /* 中文释义 */
+  --fs-body: 16px;       /* 正文、设置项、例句英文 */
+  --fs-ui: 15px;         /* 音标、按钮文字 */
+  --fs-example-cn: 14px; /* 例句中文 */
+  --fs-aux: 13px;        /* 辅助说明 */
+  --fs-unit: 12px;       /* 数字单位 */
+  --fs-label: 11px;      /* eyebrow、词性、标签 */
+
+  /* ---------- 动效 ---------- */
+  --dur-fast: 0.16s;
+  --dur-base: 0.24s;
+}
