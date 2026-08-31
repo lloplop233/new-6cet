@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import type { Rating, ReviewState, Timestamp } from './review'
+import type { Settings } from './settings'
 import type { StudyMode, StudySession } from './study'
 import type { Word } from './word'
 
@@ -48,6 +49,21 @@ export const SESSION_FIXTURE = {
   completedAt: NOW,
 } satisfies StudySession
 
+export const SETTINGS_FIXTURE = {
+  targetWordCount: 2500,
+  preferredMode: 'flashcard',
+  autoPronounce: false,
+  updatedAt: NOW,
+} satisfies Settings
+
+// @ts-expect-error Settings 必须显式包含 autoPronounce
+const INCOMPLETE_SETTINGS: Settings = {
+  targetWordCount: 2500,
+  preferredMode: 'flashcard',
+  updatedAt: NOW,
+}
+void INCOMPLETE_SETTINGS
+
 const VALID_MODE: StudyMode = 'multiple-choice'
 void VALID_MODE
 
@@ -83,5 +99,10 @@ describe('domain types', () => {
   it('keys session results by stable WordId', () => {
     assert.equal(SESSION_FIXTURE.results.dignity.wordId, WORD_FIXTURE.id)
     assert.equal(SESSION_FIXTURE.queue[0], WORD_FIXTURE.id)
+  })
+
+  it('keeps confirmed settings explicit', () => {
+    assert.equal(SETTINGS_FIXTURE.targetWordCount, 2500)
+    assert.equal(SETTINGS_FIXTURE.autoPronounce, false)
   })
 })
