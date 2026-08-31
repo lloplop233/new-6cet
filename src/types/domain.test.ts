@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import type { BackupEnvelope } from './backup'
 import type { Rating, ReviewState, Timestamp } from './review'
 import type { Settings } from './settings'
 import type { StudyMode, StudySession } from './study'
@@ -56,6 +57,27 @@ export const SETTINGS_FIXTURE = {
   updatedAt: NOW,
 } satisfies Settings
 
+export const BACKUP_FIXTURE = {
+  schemaVersion: 1,
+  appVersion: '0.1.0',
+  exportedAt: NOW,
+  data: {
+    settings: SETTINGS_FIXTURE,
+    reviews: {
+      [WORD_FIXTURE.id]: REVIEW_FIXTURE,
+    },
+    activeSession: SESSION_FIXTURE,
+  },
+} satisfies BackupEnvelope
+
+// @ts-expect-error BackupEnvelope 必须包含 appVersion
+const INCOMPLETE_BACKUP: BackupEnvelope = {
+  schemaVersion: 1,
+  exportedAt: NOW,
+  data: BACKUP_FIXTURE.data,
+}
+void INCOMPLETE_BACKUP
+
 // @ts-expect-error Settings 必须显式包含 autoPronounce
 const INCOMPLETE_SETTINGS: Settings = {
   targetWordCount: 2500,
@@ -104,5 +126,12 @@ describe('domain types', () => {
   it('keeps confirmed settings explicit', () => {
     assert.equal(SETTINGS_FIXTURE.targetWordCount, 2500)
     assert.equal(SETTINGS_FIXTURE.autoPronounce, false)
+  })
+
+  it('round-trips a complete backup through JSON', () => {
+    const restored = JSON.parse(JSON.stringify(BACKUP_FIXTURE))
+
+    assert.deepEqual(restored, BACKUP_FIXTURE)
+    assert.equal('words' in restored.data, false)
   })
 })
