@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { createEmptyCard, fsrs, Rating as FsrsRating, State } from 'ts-fsrs'
+import type { Card, CardInput } from 'ts-fsrs'
 
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
@@ -10,6 +11,40 @@ import type { FsrsSchedulingState } from '../types/fsrs'
 import type { ReviewState } from '../types/review'
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { createFsrsParametersSnapshot, dateToTimestamp, fromFsrsState, timestampToDate, toFsrsRating, toFsrsState } from './fsrs.ts'
+
+function persistCard(wordId: ReviewState['wordId'], card: Card) {
+  const review = {
+    wordId,
+    phase: fromFsrsState(card.state),
+    dueAt: dateToTimestamp(card.due),
+    lastReviewedAt: card.last_review ? dateToTimestamp(card.last_review) : null,
+    reviewCount: card.reps,
+    lapseCount: card.lapses,
+  } satisfies ReviewState
+  const scheduling = {
+    stability: card.stability,
+    difficulty: card.difficulty,
+    scheduledDays: card.scheduled_days,
+    learningSteps: card.learning_steps,
+  } satisfies FsrsSchedulingState
+
+  return { review, scheduling }
+}
+
+function restoreCard(review: ReviewState, scheduling: FsrsSchedulingState): CardInput {
+  return {
+    due: timestampToDate(review.dueAt),
+    stability: scheduling.stability,
+    difficulty: scheduling.difficulty,
+    elapsed_days: 0,
+    scheduled_days: scheduling.scheduledDays,
+    learning_steps: scheduling.learningSteps,
+    reps: review.reviewCount,
+    lapses: review.lapseCount,
+    state: toFsrsState(review.phase),
+    last_review: review.lastReviewedAt === null ? null : timestampToDate(review.lastReviewedAt),
+  }
+}
 
 describe('FSRS dependency contract', () => {
   it('loads the scheduler through ESM', () => {
@@ -127,5 +162,33 @@ describe('FSRS parameters and new-card behavior', () => {
       const result = scheduler.next(card, timestampToDate(now), toFsrsRating(rating))
       assert.equal(result.card.due.getTime() - now, expectedOffset)
     }
+  })
+})
+
+describe('FSRS JSON state recovery', () => {
+  it('continues the current learning step exactly like the in-memory card', () => {
+    const now = 1_788_105_600_000
+    const scheduler = fsrs()
+    const initial = createEmptyCard(timestampToDate(now))
+    const first = scheduler.next(initial, timestampToDate(now), toFsrsRating('again'))
+    const direct = scheduler.next(first.card, first.card.due, toFsrsRating('good'))
+
+    const persisted = persistCard('dignity', first.card)
+    const serialized = JSON.stringify(persisted)
+    const recovered = JSON.parse(serialized) as ReturnType<typeof persistCard>
+    const restored = restoreCard(recovered.review, recovered.scheduling)
+    const resumed = scheduler.next(restored, first.card.due, toFsrsRating('good'))
+
+    assert.equal(first.card.state, State.Learning)
+    assert.equal(recovered.scheduling.learningSteps, first.card.learning_steps)
+    assert.equal(restored.learning_steps, first.card.learning_steps)
+    assert.equal(resumed.card.state, direct.card.state)
+    assert.equal(resumed.card.learning_steps, direct.card.learning_steps)
+    assert.equal(resumed.card.due.getTime(), direct.card.due.getTime())
+    assert.equal(serialized.includes('elapsed_days'), false)
+    assert.equal(serialized.includes('Date'), false)
+    assert.equal(typeof recovered.review.dueAt, 'number')
+    assert.equal(typeof recovered.review.lastReviewedAt, 'number')
+    assert.equal(Object.keys(recovered.review).some(key => key in recovered.scheduling), false)
   })
 })
