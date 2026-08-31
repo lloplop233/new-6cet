@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import type { BackupEnvelope } from './backup'
+import type { BackupData, BackupEnvelope } from './backup'
 import type { Rating, ReviewState, Timestamp } from './review'
 import type { Settings } from './settings'
-import type { StudyMode, StudySession } from './study'
+import type { SessionResult, StudyMode, StudySession } from './study'
 import type { Word } from './word'
 
 export const WORD_FIXTURE = {
@@ -104,9 +104,46 @@ void INVALID_RATING
 const INVALID_TIMESTAMP: Timestamp = new Date()
 void INVALID_TIMESTAMP
 
+// @ts-expect-error Rating 必须拒绝 null
+const NULL_RATING: Rating = null
+void NULL_RATING
+
+// @ts-expect-error 必填释义必须拒绝 undefined
+const UNDEFINED_DEFINITION: Word['senses'][number]['definition'] = undefined
+void UNDEFINED_DEFINITION
+
+const NULL_PHONETIC: Word['phonetic'] = null
+const NULL_COMPLETED_AT: StudySession['completedAt'] = null
+void NULL_PHONETIC
+void NULL_COMPLETED_AT
+
 // @ts-expect-error Word 必须包含完整的词库字段
 const INCOMPLETE_WORD: Word = { id: 'dignity' }
 void INCOMPLETE_WORD
+
+function assertWordReadonly(word: Word) {
+  // @ts-expect-error Word 顶层字段不可修改
+  word.text = 'changed'
+  // @ts-expect-error Word 嵌套集合不可追加
+  word.senses.push({ partOfSpeech: 'n', definition: '变更' })
+  // @ts-expect-error WordSense 字段不可修改
+  word.senses[0].definition = 'changed'
+}
+void assertWordReadonly
+
+const SESSION: StudySession = SESSION_FIXTURE
+// @ts-expect-error 未评分的 WordId 不保证存在 SessionResult
+const REQUIRED_SESSION_RESULT: SessionResult = SESSION.results.missing
+void REQUIRED_SESSION_RESULT
+
+const BACKUP: BackupEnvelope = BACKUP_FIXTURE
+// @ts-expect-error 未复习的 WordId 不保证存在 ReviewState
+const REQUIRED_REVIEW_STATE: ReviewState = BACKUP.data.reviews.missing
+void REQUIRED_REVIEW_STATE
+
+const BACKUP_DATA: BackupData = BACKUP_FIXTURE.data
+// @ts-expect-error BackupData 不得暴露静态词库本体
+void BACKUP_DATA.words
 
 describe('domain types', () => {
   it('keeps a word fixture JSON-serializable', () => {
@@ -118,7 +155,7 @@ describe('domain types', () => {
     assert.equal(typeof REVIEW_FIXTURE.lastReviewedAt, 'number')
   })
 
-  it('keys session results by stable WordId', () => {
+  it('round-trips a known session result keyed by WordId', () => {
     assert.equal(SESSION_FIXTURE.results.dignity.wordId, WORD_FIXTURE.id)
     assert.equal(SESSION_FIXTURE.queue[0], WORD_FIXTURE.id)
   })

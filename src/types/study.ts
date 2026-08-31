@@ -16,7 +16,7 @@ export interface StudySession {
   mode: StudyMode
   queue: readonly WordId[]
   currentIndex: number
-  results: Readonly<Record<WordId, SessionResult>>
+  results: Readonly<Partial<Record<WordId, SessionResult>>>
   status: SessionStatus
   startedAt: Timestamp
   updatedAt: Timestamp

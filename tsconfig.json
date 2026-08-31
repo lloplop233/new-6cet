@@ -15,7 +15,7 @@
       "vite-plugin-pwa/client"
     ],
     "allowJs": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "noImplicitAny": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

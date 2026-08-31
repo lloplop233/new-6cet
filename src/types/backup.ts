@@ -5,7 +5,7 @@ import type { WordId } from './word'
 
 export interface BackupData {
   settings: Settings
-  reviews: Readonly<Record<WordId, ReviewState>>
+  reviews: Readonly<Partial<Record<WordId, ReviewState>>>
   activeSession: StudySession | null
 }
 
