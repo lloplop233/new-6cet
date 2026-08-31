@@ -1,7 +1,9 @@
-import { Rating as FsrsRating, State } from 'ts-fsrs'
+import { Rating as FsrsRating, generatorParameters, State } from 'ts-fsrs'
+import type { Grade } from 'ts-fsrs'
 
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { MAX_TIMESTAMP } from '../constants/fsrs.ts'
+import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
+import type { FsrsParametersSnapshot } from '../types/fsrs'
 import type { Rating, ReviewPhase } from '../types/review'
 
 const RATING_MAP = Object.freeze({
@@ -10,8 +12,29 @@ const RATING_MAP = Object.freeze({
   good: FsrsRating.Good,
 })
 
-export function toFsrsRating(rating: Rating): FsrsRating {
+export function toFsrsRating(rating: Rating): Grade {
   return RATING_MAP[rating]
+}
+
+export function createFsrsParametersSnapshot(): FsrsParametersSnapshot {
+  const params = generatorParameters({
+    request_retention: FSRS_PARAMETER_OVERRIDES.requestRetention,
+    maximum_interval: FSRS_PARAMETER_OVERRIDES.maximumInterval,
+    enable_fuzz: FSRS_PARAMETER_OVERRIDES.enableFuzz,
+    enable_short_term: FSRS_PARAMETER_OVERRIDES.enableShortTerm,
+    learning_steps: [...FSRS_PARAMETER_OVERRIDES.learningSteps],
+    relearning_steps: [...FSRS_PARAMETER_OVERRIDES.relearningSteps],
+  })
+
+  return {
+    requestRetention: params.request_retention,
+    maximumInterval: params.maximum_interval,
+    weights: [...params.w],
+    enableFuzz: params.enable_fuzz,
+    enableShortTerm: params.enable_short_term,
+    learningSteps: [...params.learning_steps],
+    relearningSteps: [...params.relearning_steps],
+  }
 }
 
 export function timestampToDate(value: unknown): Date {

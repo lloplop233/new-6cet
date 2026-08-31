@@ -9,7 +9,7 @@ import { MAX_TIMESTAMP } from '../constants/fsrs.ts'
 import type { FsrsSchedulingState } from '../types/fsrs'
 import type { ReviewState } from '../types/review'
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { dateToTimestamp, fromFsrsState, timestampToDate, toFsrsRating, toFsrsState } from './fsrs.ts'
+import { createFsrsParametersSnapshot, dateToTimestamp, fromFsrsState, timestampToDate, toFsrsRating, toFsrsState } from './fsrs.ts'
 
 describe('FSRS dependency contract', () => {
   it('loads the scheduler through ESM', () => {
@@ -82,5 +82,36 @@ describe('FSRS rating and time boundary', () => {
 
   it('rejects Invalid Date', () => {
     assert.throws(() => dateToTimestamp(new Date(Number.NaN)), RangeError)
+  })
+})
+
+describe('FSRS parameters and new-card behavior', () => {
+  it('freezes the complete FSRS-6 parameter snapshot', () => {
+    const snapshot = createFsrsParametersSnapshot()
+
+    assert.equal(snapshot.requestRetention, 0.9)
+    assert.equal(snapshot.maximumInterval, 36_500)
+    assert.equal(snapshot.enableFuzz, false)
+    assert.equal(snapshot.enableShortTerm, true)
+    assert.deepEqual(snapshot.learningSteps, ['1m', '10m'])
+    assert.deepEqual(snapshot.relearningSteps, ['10m'])
+    assert.equal(snapshot.weights.length, 21)
+    assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot)
+  })
+
+  it('keeps the new-card learning-step golden behavior', () => {
+    const now = 1_788_105_600_000
+    const scheduler = fsrs()
+    const cases = [
+      ['again', 60_000],
+      ['hard', 360_000],
+      ['good', 600_000],
+    ] as const
+
+    for (const [rating, expectedOffset] of cases) {
+      const card = createEmptyCard(timestampToDate(now))
+      const result = scheduler.next(card, timestampToDate(now), toFsrsRating(rating))
+      assert.equal(result.card.due.getTime() - now, expectedOffset)
+    }
   })
 })
