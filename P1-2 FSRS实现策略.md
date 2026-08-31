@@ -62,7 +62,10 @@ export interface FsrsSchedulingState {
 
 | 项目字段 | `ts-fsrs Card` 字段 |
 |---|---|
-| `phase` | `state` |
+| `phase: 'new'` | `State.New` |
+| `phase: 'learning'` | `State.Learning` |
+| `phase: 'review'` | `State.Review` |
+| `phase: 'relearning'` | `State.Relearning` |
 | `dueAt` | `due` |
 | `lastReviewedAt` | `last_review` |
 | `reviewCount` | `reps` |
@@ -72,9 +75,11 @@ export interface FsrsSchedulingState {
 | `FsrsSchedulingState.scheduledDays` | `scheduled_days` |
 | `FsrsSchedulingState.learningSteps` | `learning_steps` |
 
-`elapsed_days` 不进入项目长期状态。`ts-fsrs@5.4.1` 每次调度会根据 `last_review` 和调用方注入的本次复习时间重新计算该值；该字段在库中也已标记为将在 `6.0.0` 移除。适配层为 `5.4.1` 构造 `CardInput` 时可以填入兼容初值，但不得把它提升为新的持久化事实。
+`elapsed_days` 不作为当前 `next()` 前向调度所需的持久化核心状态。`ts-fsrs@5.4.1` 每次前向调度会根据 `last_review` 和调用方注入的本次复习时间重新计算该值；该字段在库中也已标记为将在 `6.0.0` 移除。适配层为 `5.4.1` 构造 `CardInput` 时可以填入兼容初值，但不得把它提升为当前前向调度的新持久化事实。若未来支持 `rollback`、revlog 持久化或 history replay，必须结合对应 API 对历史字段的要求重新评估，不能直接沿用本阶段结论。
 
 本阶段不修改 `ReviewState` 已冻结字段。P1-3 决定组合记录在备份和 `localStorage` 中的具体嵌套形状。
+
+`ReviewState` 与 `FsrsSchedulingState` 的字段所有权必须互斥：业务状态拥有 `wordId`、phase、到期时间、末次复习时间和计数；算法状态只拥有 stability、difficulty、调度天数和学习步骤。两者使用嵌套组合，不允许把同一语义同时存入两个对象，也不允许用展开运算合并为可能发生键覆盖的扁平对象。测试必须证明两个类型的实际序列化键集合不存在交集。
 
 ## 四、评分映射
 
@@ -106,8 +111,10 @@ Date -> date.getTime()
 - 不使用日期字符串作为适配层输入或持久化格式；
 - 不使用带本地时区语义的分量构造器；
 - 纯函数和测试不得调用 `Date.now()`，当前时间由调用方注入；
-- 转换入口拒绝负数、非有限数和非安全整数；
-- 转换出口拒绝 `Invalid Date`；
+- `Timestamp` 必须是位于 `[0, 8_640_000_000_000_000]` 范围内的安全整数；
+- `null` 时间必须由调用方或可空转换入口显式处理，不得传入 `Date` 构造器；
+- `Timestamp -> Date` 后必须再次验证 `date.getTime()` 为有限值；
+- `Date -> Timestamp` 必须拒绝 `Invalid Date`，并对结果重新执行相同的安全整数与范围检查；
 - 固定毫秒时间必须双向无损往返。
 
 ## 六、初始化参数
@@ -140,14 +147,24 @@ Date -> date.getTime()
 - 新词必须使用调用方注入的 `Timestamp` 调用 `createEmptyCard(new Date(timestamp))`，不得依赖库的当前时间默认值。
 - 新词的项目业务状态为 `phase: 'new'`、`reviewCount: 0`、`lapseCount: 0`、`lastReviewedAt: null`。
 - 调度只调用 `scheduler.next(card, reviewedAt, mappedRating)`，因为产品在用户评分后只需要一个确定结果，不需要持久化 `repeat()` 返回的四套预览。
-- `Learning`、`Review`、`Relearning` 与项目 `learning`、`review`、`relearning` 一一映射。
+- `New`、`Learning`、`Review`、`Relearning` 与项目 `new`、`learning`、`review`、`relearning` 一一映射，两个方向都必须穷尽处理。
 - `Again`、`Hard`、`Good` 的具体到期时间和状态转换完全由库产生，项目不得复制或重写算法公式。
+
+在固定时间创建的新词使用默认学习步骤时，首轮评分的 golden behavior 固定为：
+
+| 评分 | 下次到期时间 |
+|---|---|
+| `Again` | 本次评分时间 `+1m` |
+| `Hard` | 本次评分时间 `+6m` |
+| `Good` | 本次评分时间 `+10m` |
+
+测试不得只断言“得到合法日期”或“晚于当前时间”，必须断言精确毫秒差。该 golden test 同时保护三档映射和默认 `learning_steps` 配置。
 
 完整的 `ReviewState + FsrsSchedulingState <-> CardInput/Card` 适配与调度函数属于 P4-1；P1-2 只实现足以验证映射、时间和序列化契约的最小纯函数。
 
 ## 八、序列化与升级约束
 
-P1-3 的存储协议必须能记录：
+P1-3 的项目存储协议必须拥有独立的 `schemaVersion`，并能在 scheduler 元数据中记录：
 
 ```ts
 {
@@ -160,7 +177,11 @@ P1-3 的存储协议必须能记录：
 
 其中 `parameters` 是 `generatorParameters()`生成并经过项目边界校验的完整 JSON 快照，包括 `w`。上述元数据放在存储协议的统一位置，不在每个单词上重复保存。
 
+`schemaVersion` 表示项目自身存储结构的版本，用于选择校验和迁移路径；`libraryVersion` 只表示生成或读取 FSRS 状态时使用的第三方库版本。两者职责不同，`libraryVersion` 不能代替、推导或兼任 `schemaVersion`。
+
 每个已有进度必须包含 `ReviewState` 和 `FsrsSchedulingState`。不持久化 `Date`、库类实例、`Map`、`Set`、函数、四档预览结果或可重新计算的 `elapsed_days`。
+
+序列化验证必须覆盖真实继续调度：先从库结果提取项目 JSON 状态，经原生 `JSON.stringify`/`JSON.parse` 恢复，再把恢复结果重建为库输入并调用下一次 `next()`。恢复路径的结果必须与未经过 JSON 往返的基线在状态、学习步骤和到期时间上完全一致，证明 `learning_steps` 没有在项目状态保存或恢复时丢失。
 
 升级约束：
 
@@ -198,13 +219,16 @@ P1-2 只有在以下条件全部满足后才能标记为完成：
 
 1. `ts-fsrs@5.4.1` 被精确锁定，未安装 optimizer；
 2. 三档映射只有一个实现来源，测试逐项覆盖；
-3. 时间转换拒绝非法输入，并通过固定毫秒双向无损测试；
+3. 时间转换逐项拒绝 `8_640_000_000_000_001`、`NaN`、`Infinity`、小数、负数和 `null`，`Date -> Timestamp` 额外拒绝 `Invalid Date`；`0`、`8_640_000_000_000_000` 与固定毫秒值均通过 `Timestamp -> Date -> Timestamp` 无损测试；
 4. 默认参数与本设计完全一致，`enable_fuzz` 为 `false`；
-5. 项目自有算法状态经过原生 JSON 往返后值不变；
-6. 固定时间的新词分别使用三档评分时，真实库返回对应评分且产生合法下一状态；
+5. 项目自有算法状态经过原生 JSON 往返后值不变，恢复后继续 `next()` 与未序列化基线的状态、`learning_steps` 和到期时间一致；
+6. 固定时间的新词使用 `Again`、`Hard`、`Good` 时，下一到期时间分别精确为 `+1m`、`+6m`、`+10m`；
 7. 项目领域类型不 import 第三方 FSRS 类型；
-8. `pnpm typecheck`、Lint、全部 Node 测试和生产构建通过；
-9. 工程规范扫描通过；
-10. 记录实际生产构建产物变化、修改文件、验证结果、关键决策和剩余升级风险；
-11. 没有提前实现 P1-3、P1-4、P2 或页面功能。
-
+8. `ReviewState` 与 `FsrsSchedulingState` 的序列化键集合无交集，不存在同一业务语义双写；
+9. 状态转换测试穷尽验证 `New/Learning/Review/Relearning <-> new/learning/review/relearning`；
+10. P1-3 交接约束明确区分 `schemaVersion` 与 `libraryVersion`；
+11. `ts-fsrs` 声明的 Node.js 最低版本为 `>=20.0.0`，项目声明和实际验证环境均满足该要求；
+12. `pnpm typecheck`、Lint、全部 Node 测试和生产构建通过；
+13. 工程规范扫描通过；
+14. 记录实际生产构建产物变化、修改文件、验证结果、关键决策和剩余升级风险；
+15. 没有提前实现 P1-3、P1-4、P2 或页面功能。
