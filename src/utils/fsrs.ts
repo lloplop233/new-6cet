@@ -1,5 +1,4 @@
 import { Rating as FsrsRating, generatorParameters, State } from 'ts-fsrs'
-import type { Grade } from 'ts-fsrs'
 
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
@@ -12,7 +11,9 @@ const RATING_MAP = Object.freeze({
   good: FsrsRating.Good,
 })
 
-export function toFsrsRating(rating: Rating): Grade {
+type ProductFsrsRating = FsrsRating.Again | FsrsRating.Hard | FsrsRating.Good
+
+export function toFsrsRating(rating: Rating): ProductFsrsRating {
   return RATING_MAP[rating]
 }
 

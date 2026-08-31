@@ -4,7 +4,7 @@ import { describe, it } from 'node:test'
 import { createEmptyCard, fsrs, Rating as FsrsRating, State } from 'ts-fsrs'
 
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { MAX_TIMESTAMP } from '../constants/fsrs.ts'
+import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
 
 import type { FsrsSchedulingState } from '../types/fsrs'
 import type { ReviewState } from '../types/review'
@@ -65,6 +65,14 @@ describe('FSRS rating and time boundary', () => {
     assert.equal(toFsrsRating('again'), FsrsRating.Again)
     assert.equal(toFsrsRating('hard'), FsrsRating.Hard)
     assert.equal(toFsrsRating('good'), FsrsRating.Good)
+
+    type ProductFsrsRating = ReturnType<typeof toFsrsRating>
+    const schedulerGrade: Parameters<ReturnType<typeof fsrs>['next']>[2] = toFsrsRating('good')
+    // @ts-expect-error The product rating boundary must not expose Easy.
+    const excludedEasy: ProductFsrsRating = FsrsRating.Easy
+
+    assert.equal(schedulerGrade, FsrsRating.Good)
+    assert.equal(excludedEasy, FsrsRating.Easy)
   })
 
   it('round-trips the valid timestamp boundaries', () => {
@@ -88,6 +96,7 @@ describe('FSRS rating and time boundary', () => {
 describe('FSRS parameters and new-card behavior', () => {
   it('freezes the complete FSRS-6 parameter snapshot', () => {
     const snapshot = createFsrsParametersSnapshot()
+    const secondSnapshot = createFsrsParametersSnapshot()
 
     assert.equal(snapshot.requestRetention, 0.9)
     assert.equal(snapshot.maximumInterval, 36_500)
@@ -97,6 +106,11 @@ describe('FSRS parameters and new-card behavior', () => {
     assert.deepEqual(snapshot.relearningSteps, ['10m'])
     assert.equal(snapshot.weights.length, 21)
     assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot)
+    assert.notEqual(snapshot.weights, secondSnapshot.weights)
+    assert.notEqual(snapshot.learningSteps, secondSnapshot.learningSteps)
+    assert.notEqual(snapshot.relearningSteps, secondSnapshot.relearningSteps)
+    assert.notEqual(snapshot.learningSteps, FSRS_PARAMETER_OVERRIDES.learningSteps)
+    assert.notEqual(snapshot.relearningSteps, FSRS_PARAMETER_OVERRIDES.relearningSteps)
   })
 
   it('keeps the new-card learning-step golden behavior', () => {
