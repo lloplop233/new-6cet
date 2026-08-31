@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import type { Rating, ReviewState, Timestamp } from './review'
+import type { StudyMode, StudySession } from './study'
 import type { Word } from './word'
 
 export const WORD_FIXTURE = {
@@ -29,6 +30,31 @@ export const REVIEW_FIXTURE = {
   lapseCount: 1,
 } satisfies ReviewState
 
+export const SESSION_FIXTURE = {
+  id: 'session-2026-08-31-001',
+  mode: 'flashcard',
+  queue: [WORD_FIXTURE.id],
+  currentIndex: 0,
+  results: {
+    [WORD_FIXTURE.id]: {
+      wordId: WORD_FIXTURE.id,
+      rating: 'good',
+      ratedAt: NOW,
+    },
+  },
+  status: 'completed',
+  startedAt: NOW - 60_000,
+  updatedAt: NOW,
+  completedAt: NOW,
+} satisfies StudySession
+
+const VALID_MODE: StudyMode = 'multiple-choice'
+void VALID_MODE
+
+// @ts-expect-error StudyMode 不允许未定义的模式
+const INVALID_MODE: StudyMode = 'spelling'
+void INVALID_MODE
+
 const VALID_RATING: Rating = 'good'
 void VALID_RATING
 
@@ -52,5 +78,10 @@ describe('domain types', () => {
   it('keeps review timestamps as JSON numbers', () => {
     assert.equal(typeof REVIEW_FIXTURE.dueAt, 'number')
     assert.equal(typeof REVIEW_FIXTURE.lastReviewedAt, 'number')
+  })
+
+  it('keys session results by stable WordId', () => {
+    assert.equal(SESSION_FIXTURE.results.dignity.wordId, WORD_FIXTURE.id)
+    assert.equal(SESSION_FIXTURE.queue[0], WORD_FIXTURE.id)
   })
 })
