@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { createEmptyCard, fsrs, State } from 'ts-fsrs'
+import { createEmptyCard, fsrs, Rating as FsrsRating, State } from 'ts-fsrs'
+
+// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
+import { MAX_TIMESTAMP } from '../constants/fsrs.ts'
 
 import type { FsrsSchedulingState } from '../types/fsrs'
 import type { ReviewState } from '../types/review'
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { fromFsrsState, toFsrsState } from './fsrs.ts'
+import { dateToTimestamp, fromFsrsState, timestampToDate, toFsrsRating, toFsrsState } from './fsrs.ts'
 
 describe('FSRS dependency contract', () => {
   it('loads the scheduler through ESM', () => {
@@ -54,5 +57,30 @@ describe('FSRS state boundary', () => {
 
     const overlappingKeys = Object.keys(review).filter(key => key in scheduling)
     assert.deepEqual(overlappingKeys, [])
+  })
+})
+
+describe('FSRS rating and time boundary', () => {
+  it('maps the three product ratings exactly', () => {
+    assert.equal(toFsrsRating('again'), FsrsRating.Again)
+    assert.equal(toFsrsRating('hard'), FsrsRating.Hard)
+    assert.equal(toFsrsRating('good'), FsrsRating.Good)
+  })
+
+  it('round-trips the valid timestamp boundaries', () => {
+    for (const timestamp of [0, 1_788_105_600_000, MAX_TIMESTAMP]) {
+      assert.equal(dateToTimestamp(timestampToDate(timestamp)), timestamp)
+    }
+  })
+
+  it('rejects every invalid timestamp input', () => {
+    const invalid = [8_640_000_000_000_001, Number.NaN, Infinity, 1.5, -1, null]
+
+    for (const value of invalid)
+      assert.throws(() => timestampToDate(value), RangeError)
+  })
+
+  it('rejects Invalid Date', () => {
+    assert.throws(() => dateToTimestamp(new Date(Number.NaN)), RangeError)
   })
 })
