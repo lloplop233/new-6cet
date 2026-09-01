@@ -7,7 +7,12 @@ export const appDescription = '六级词汇背记工具'
  */
 export const routeTitles: Record<string, string> = {
   Home: '今日',
+  Study: '今日学习',
+  StudyComplete: '本组完成',
+  Progress: '进度',
+  Settings: '设置',
   Tokens: '设计 token 验收',
+  404: '页面不存在',
 }
 
 /**
@@ -15,5 +20,6 @@ export const routeTitles: Record<string, string> = {
  */
 export const rootRouteList: readonly string[] = [
   'Home',
-  'Tokens',
+  'Progress',
+  'Settings',
 ]

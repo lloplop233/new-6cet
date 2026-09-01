@@ -1,11 +1,8 @@
 <script setup lang="ts">
 const router = useRouter()
 
-function onBack() {
-  if (window.history.state.back)
-    history.back()
-  else
-    router.replace('/')
+function goHome() {
+  router.replace('/')
 }
 </script>
 
@@ -15,8 +12,8 @@ function onBack() {
     <p class="not-found__text">
       页面不存在
     </p>
-    <van-button type="primary" size="small" @click="onBack">
-      返回
+    <van-button type="primary" size="small" @click="goHome">
+      返回首页
     </van-button>
   </div>
 </template>

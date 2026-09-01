@@ -4,6 +4,12 @@ import { rootRouteList } from '@/constants'
 const active = ref(0)
 const route = useRoute()
 
+const TABS = [
+  { to: '/', icon: 'home-o', label: '今日' },
+  { to: '/progress', icon: 'bar-chart-o', label: '进度' },
+  { to: '/settings', icon: 'setting-o', label: '设置' },
+] as const
+
 const show = computed(() => {
   if (route.name && rootRouteList.includes(route.name)) {
     return true
@@ -14,11 +20,14 @@ const show = computed(() => {
 
 <template>
   <van-tabbar v-if="show" v-model="active" route placeholder>
-    <van-tabbar-item replace to="/" icon="home-o">
-      今日
-    </van-tabbar-item>
-    <van-tabbar-item replace to="/tokens" icon="brush-o">
-      设计
+    <van-tabbar-item
+      v-for="tab in TABS"
+      :key="tab.to"
+      replace
+      :to="tab.to"
+      :icon="tab.icon"
+    >
+      {{ tab.label }}
     </van-tabbar-item>
   </van-tabbar>
 </template>

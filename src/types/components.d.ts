@@ -11,9 +11,16 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Eyebrow: typeof import('./../components/ui/Eyebrow.vue')['default']
     NavBar: typeof import('./../components/layout/NavBar.vue')['default']
+    QueueBar: typeof import('./../components/word/QueueBar.vue')['default']
+    RateButtons: typeof import('./../components/word/RateButtons.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SegmentToggle: typeof import('./../components/ui/SegmentToggle.vue')['default']
+    StatCard: typeof import('./../components/ui/StatCard.vue')['default']
+    StatePanel: typeof import('./../components/ui/StatePanel.vue')['default']
+    StatNumber: typeof import('./../components/ui/StatNumber.vue')['default']
     TabBar: typeof import('./../components/layout/TabBar.vue')['default']
     VanButton: typeof import('vant/es')['Button']
     VanCell: typeof import('vant/es')['Cell']
@@ -22,6 +29,7 @@ declare module 'vue' {
     VanIcon: typeof import('vant/es')['Icon']
     VanNavBar: typeof import('vant/es')['NavBar']
     VanPopup: typeof import('vant/es')['Popup']
+    VanSkeleton: typeof import('vant/es')['Skeleton']
     VanSlider: typeof import('vant/es')['Slider']
     VanSwitch: typeof import('vant/es')['Switch']
     VanTabbar: typeof import('vant/es')['Tabbar']

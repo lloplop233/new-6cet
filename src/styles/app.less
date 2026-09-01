@@ -12,6 +12,19 @@ html {
   color-scheme: light;
 }
 
+body,
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
 #app {
   height: 100%;
   position: relative;
@@ -26,4 +39,51 @@ html {
 :focus-visible {
   outline: 2px solid var(--brand-deep);
   outline-offset: 2px;
+}
+
+.page-stack,
+.section-stack,
+.page-heading,
+.action-stack {
+  display: grid;
+}
+
+.page-stack {
+  gap: var(--s7);
+}
+
+.section-stack {
+  gap: var(--s4);
+}
+
+.page-heading {
+  gap: var(--s2);
+}
+
+.action-stack {
+  gap: var(--s3);
+}
+
+.page-title {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+
+.page-subtitle {
+  color: var(--ink-2);
+  font-size: var(--fs-aux);
+  line-height: var(--lh-body);
+}
+
+.mock-note {
+  padding: var(--s3) var(--s4);
+  border: var(--hairline) solid var(--brand);
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  font-size: var(--fs-aux);
+  line-height: var(--lh-body);
 }

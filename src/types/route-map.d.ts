@@ -45,6 +45,34 @@ declare module 'vue-router/auto-routes' {
       { all: ParamValue<false> },
       | never
     >,
+    'Progress': RouteRecordInfo<
+      'Progress',
+      '/progress',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    'Settings': RouteRecordInfo<
+      'Settings',
+      '/settings',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    'Study': RouteRecordInfo<
+      'Study',
+      '/study',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    'StudyComplete': RouteRecordInfo<
+      'StudyComplete',
+      '/study/complete',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     'Tokens': RouteRecordInfo<
       'Tokens',
       '/tokens',
@@ -80,6 +108,38 @@ declare module 'vue-router/auto-routes' {
         | never
       pathParamNames:
         | 'all'
+    }
+    'src/pages/progress/index.vue': {
+      routes:
+        | 'Progress'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/settings/index.vue': {
+      routes:
+        | 'Settings'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/study/index.vue': {
+      routes:
+        | 'Study'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/study/complete.vue': {
+      routes:
+        | 'StudyComplete'
+      views:
+        | never
+      pathParamNames:
+        | never
     }
     'src/pages/tokens/index.vue': {
       routes:

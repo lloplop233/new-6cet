@@ -1,6 +1,8 @@
 # P1-2 FSRS 实施计划
 
 > **供 Agent 执行：** REQUIRED SUB-SKILL：使用 `superpowers:executing-plans` 按任务逐项实施。所有步骤使用复选框跟踪。
+>
+> **当前执行状态（2026-09-01）：** `codex/p1-fsrs-strategy@e6032e3` 已有 Task 1～5 的对应 commit；Task 6、当前质量门禁、L3 独立 Review 和集成尚未完成。下方复选框保留原实施步骤，不作为当前状态源；当前事实只看 `交接文档.md` 和 Git。
 
 **目标：** 精确接入 `ts-fsrs@5.4.1`，建立项目自有的 FSRS 状态、评分、状态、时间与参数边界，并以确定性测试冻结 P1-2 策略。
 
