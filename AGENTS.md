@@ -10,6 +10,14 @@
 3. 实际仓库状态以 Code + Git 为准，行为是否成立以 Tests / Build / Browser 为准，预期行为以用户已确认的 Project Docs / Specs 为准。文档与这些事实冲突时必须指出并先解决冲突，不能猜测。
 4. 历史聊天、context compaction 摘要和 Codex 对旧对话的记忆不是事实来源。只有信息不足或发生冲突时才扩大调查范围。
 
+## 项目级文档真相源与 Feature Branch 生命周期
+
+- `main` 最新提交中的 Code、Git 状态和项目级当前状态文档，是当前项目事实的唯一来源。项目级文档包括 `AGENTS.md`、`交接文档.md`、`项目实施计划.md`、仍承担当前状态职责的阶段总交接，以及当前产品、UI、Roadmap、架构和工程规则文档。Feature branch 中这些文档只代表该 branch 最后一次与 `main` 对齐时的快照，不得在后续任务中直接视为当前项目事实。
+- 启动新任务、恢复长期 Feature branch 或进行 finalization 前，必须先核对最新 `main` 的 commit、工作区、项目级状态文档、当前 UI / 产品语义、Roadmap 和阶段完成情况，再读取本任务的专项设计、实施计划、ADR、Review、测试证据和 branch 历史。两类事实发生差异时，当前产品、UI、Roadmap 和阶段状态以 `main` 为准；本 Feature 已确认且未被后续实现改变的专项技术契约，以该 Feature 的历史记录为准。
+- 集成 Feature branch 时，项目级文档必须以最新 `main` 为底稿，只重新叠加本 Feature 真正新增或修改的状态、决策和验证证据。禁止直接用 Feature branch 的旧项目文档覆盖 `main`；Git merge 无文本 conflict 不等于文档语义未过期，仍须检查 UI、产品语义、Roadmap、阶段状态、checkpoint 和架构决策。
+- 任务专项设计、实施计划、ADR、Review 报告、冻结契约、测试证据和完成记录属于历史性 / 专项性文档。只要对应实现和契约没有变化，不要求因后续 UI、视觉、页面结构或 Roadmap 演进而持续同步；其中关于“当前 branch”“当前状态”“下一步”的文字只解释该历史 checkpoint，不得提升为项目当前事实。
+- Feature branch 的正常生命周期是创建、实现、测试、Review、finalization、集成并结束。已经完成且通过所需 Review 的 branch 应优先 merge 或通过 PR 集成，不长期承担跟踪整个项目最新 UI、产品状态和 Roadmap 的职责。
+
 ## 任务分层、模型与 Agent 协作
 
 - 按任务本身快速判断 L0-L3；Workflow、Review Budget 和 Checkpoint 只由风险等级决定。复杂任务、并行、Review 或失败升级时再定向阅读 `模型与Agent协作指南.md`。
