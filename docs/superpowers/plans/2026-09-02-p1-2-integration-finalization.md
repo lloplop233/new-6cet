@@ -260,7 +260,7 @@
 
   结果：V0 范围命令退出码 `0`、无输出；Service/Composable/页面/Store 无任何文件变化；`git diff --check` 通过。全仓库检索确认引用 FSRS 模块的文件只有它自身的 4 个文件，零接线。相对 `d6ecb58` 的实现改动为 `package.json`、`pnpm-lock.yaml` 和 4 个 FSRS 文件，共 417 行新增。
 
-- [ ] **Step 5: 审阅最终 diff 并提交文档 checkpoint**
+- [x] **Step 5: 审阅最终 diff 并提交文档 checkpoint**
 
   ```powershell
   git diff --stat d6ecb58
@@ -269,6 +269,8 @@
   git diff --cached --check
   git commit -m "docs: finalize P1-2 integration"
   ```
+
+  结果：`d5ba6e2 docs: finalize P1-2 integration`，5 文件 +341/-21。实际改动的文档为 `项目实施计划.md`、`交接文档.md`、`P1-2 FSRS实现策略.md`、`P1-2 FSRS实施计划.md` 和本 plan；`P1交接文档.md` 与 `P1-2任务交接文档.md` 已有历史声明，未改动。`git diff --cached --check` 通过。
 
 ---
 
@@ -281,20 +283,24 @@
 - Consumes: 已提交且完整验证的 `codex/p1-2-integration-finalization`。
 - Produces: 包含治理规则、V0 UI 和 P1-2 成果的本地 `main` checkpoint。
 
-- [ ] **Step 1: 确认 integration branch 干净且可 fast-forward**
+- [x] **Step 1: 确认 integration branch 干净且可 fast-forward**
 
   ```powershell
   git status --short --branch
   git merge-base --is-ancestor main codex/p1-2-integration-finalization
   ```
 
-- [ ] **Step 2: 更新本地 `main`**
+  结果：integration branch 工作区干净；`--is-ancestor` 退出码 `0`，确认可 fast-forward。
+
+- [x] **Step 2: 更新本地 `main`**
 
   ```powershell
   git -C "D:\工作\ddff" merge --ff-only codex/p1-2-integration-finalization
   ```
 
-- [ ] **Step 3: 在最终 `main` 上复跑完整门禁和 Git 检查**
+  结果：fast-forward 成功，`main` 从 `d6ecb58` 前进到 `d5ba6e2`，引入 8 个 commit、11 文件 +758/-21。
+
+- [x] **Step 3: 在最终 `main` 上复跑完整门禁和 Git 检查**
 
   ```powershell
   pnpm install --frozen-lockfile
@@ -305,3 +311,7 @@
   ```
 
   Expected：完整门禁退出码 `0`；除 `main` 相对 `origin/main` 的本地领先外工作区干净；不执行 push。
+
+  结果：`pnpm install --frozen-lockfile` 通过供应链策略校验并装入 `ts-fsrs 5.4.1`；`pnpm check` 退出码 `0`，22/22 tests 与 production build 通过；`git diff --check HEAD^` 通过；本次 build 未产生 `.d.ts` 变化，工作区除未跟踪的 `.pnpm-store/` 外干净；`main` 领先 `origin/main` 9 个 commit，**未执行 push**。
+
+  遗留的两项非阻断构建警告（`.env` 的 `NODE_ENV`、PostCSS `from`）与 P1-2 无关，已记入 `交接文档.md`。
