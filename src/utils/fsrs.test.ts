@@ -1,16 +1,48 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
-import { createEmptyCard, fsrs, Rating as FsrsRating, State } from 'ts-fsrs'
+import { createEmptyCard, fsrs, Rating as FsrsRating, FSRSVersion, State } from 'ts-fsrs'
 import type { Card, CardInput } from 'ts-fsrs'
 
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
+import { FSRS_ALGORITHM, FSRS_LIBRARY, FSRS_LIBRARY_VERSION, FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
 
 import type { FsrsSchedulingState } from '../types/fsrs'
 import type { ReviewState } from '../types/review'
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { createFsrsParametersSnapshot, dateToTimestamp, fromFsrsState, timestampToDate, toFsrsRating, toFsrsState } from './fsrs.ts'
+import { createFsrsParametersSnapshot, dateToTimestamp, fromFsrsState, timestampToDate, toFsrsParameters, toFsrsRating, toFsrsState } from './fsrs.ts'
+
+// 21 个 FSRS-6 默认权重的具体值。冻结数值本身，升级依赖若改动任何一位都会在这里失败。
+const FROZEN_FSRS6_WEIGHTS = [
+  0.212,
+  1.2931,
+  2.3065,
+  8.2956,
+  6.4133,
+  0.8334,
+  3.0194,
+  0.001,
+  1.8722,
+  0.1666,
+  0.796,
+  1.4835,
+  0.0614,
+  0.2629,
+  1.6483,
+  0.6014,
+  1.8729,
+  0.5425,
+  0.0912,
+  0.0658,
+  0.1542,
+]
+
+// 用项目冻结的参数快照构造调度器，而不是裸 fsrs()。裸调用读的是库自己的默认值，
+// 一旦项目参数被改动，golden test 仍会通过，等于没有保护。
+function createProjectScheduler() {
+  return fsrs(toFsrsParameters(createFsrsParametersSnapshot()))
+}
 
 function persistCard(wordId: ReviewState['wordId'], card: Card) {
   const review = {
@@ -56,6 +88,16 @@ describe('FSRS dependency contract', () => {
     const major = Number.parseInt(process.versions.node.split('.')[0], 10)
 
     assert.ok(major >= 20)
+  })
+
+  it('binds the recorded library metadata to the installed dependency', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { dependencies: Record<string, string> }
+
+    // 常量会进入存储协议的 scheduler 元数据，只改依赖不改常量会让持久化数据说谎。
+    assert.equal(manifest.dependencies[FSRS_LIBRARY], FSRS_LIBRARY_VERSION)
+    assert.equal(FSRSVersion, `v${FSRS_LIBRARY_VERSION} using ${FSRS_ALGORITHM}.0`)
   })
 })
 
@@ -117,10 +159,17 @@ describe('FSRS rating and time boundary', () => {
   })
 
   it('rejects every invalid timestamp input', () => {
-    const invalid = [8_640_000_000_000_001, Number.NaN, Infinity, 1.5, -1, null]
+    const invalid = [8_640_000_000_000_001, Number.NaN, Infinity, 1.5, -1]
 
     for (const value of invalid)
       assert.throws(() => timestampToDate(value), RangeError)
+  })
+
+  it('refuses nullable timestamps at compile time', () => {
+    // ReviewState.lastReviewedAt 是 Timestamp | null，收窄签名后调用方必须显式处理 null。
+    // 这条指令若不再报错说明签名被放宽了，TS2578 会让类型检查失败。
+    // @ts-expect-error timestampToDate 只接受 Timestamp。
+    assert.throws(() => timestampToDate(null), RangeError)
   })
 
   it('rejects Invalid Date', () => {
@@ -139,7 +188,7 @@ describe('FSRS parameters and new-card behavior', () => {
     assert.equal(snapshot.enableShortTerm, true)
     assert.deepEqual(snapshot.learningSteps, ['1m', '10m'])
     assert.deepEqual(snapshot.relearningSteps, ['10m'])
-    assert.equal(snapshot.weights.length, 21)
+    assert.deepEqual(snapshot.weights, FROZEN_FSRS6_WEIGHTS)
     assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot)
     assert.notEqual(snapshot.weights, secondSnapshot.weights)
     assert.notEqual(snapshot.learningSteps, secondSnapshot.learningSteps)
@@ -148,9 +197,24 @@ describe('FSRS parameters and new-card behavior', () => {
     assert.notEqual(snapshot.relearningSteps, FSRS_PARAMETER_OVERRIDES.relearningSteps)
   })
 
+  it('feeds a persisted snapshot back into the scheduler without drift', () => {
+    const snapshot = createFsrsParametersSnapshot()
+    const recovered = JSON.parse(JSON.stringify(snapshot)) as typeof snapshot
+    const params = toFsrsParameters(recovered)
+
+    // 快照必须能双向通过：写得出去、读得回来，且回喂后每一项都不被库的默认值替换。
+    assert.equal(params.request_retention, snapshot.requestRetention)
+    assert.equal(params.maximum_interval, snapshot.maximumInterval)
+    assert.equal(params.enable_fuzz, snapshot.enableFuzz)
+    assert.equal(params.enable_short_term, snapshot.enableShortTerm)
+    assert.deepEqual([...params.w], [...snapshot.weights])
+    assert.deepEqual([...params.learning_steps], [...snapshot.learningSteps])
+    assert.deepEqual([...params.relearning_steps], [...snapshot.relearningSteps])
+  })
+
   it('keeps the new-card learning-step golden behavior', () => {
     const now = 1_788_105_600_000
-    const scheduler = fsrs()
+    const scheduler = createProjectScheduler()
     const cases = [
       ['again', 60_000],
       ['hard', 360_000],
@@ -168,9 +232,11 @@ describe('FSRS parameters and new-card behavior', () => {
 describe('FSRS JSON state recovery', () => {
   it('continues the current learning step exactly like the in-memory card', () => {
     const now = 1_788_105_600_000
-    const scheduler = fsrs()
+    const scheduler = createProjectScheduler()
     const initial = createEmptyCard(timestampToDate(now))
-    const first = scheduler.next(initial, timestampToDate(now), toFsrsRating('again'))
+    // 首轮必须用 good：评 again 会让 learning_steps 停在 0，而库内部把 0 与「字段缺失」
+    // 当作同一件事，那样这个测试就检测不到 learning_steps 在存取过程中丢失。
+    const first = scheduler.next(initial, timestampToDate(now), toFsrsRating('good'))
     const direct = scheduler.next(first.card, first.card.due, toFsrsRating('good'))
 
     const persisted = persistCard('dignity', first.card)
@@ -180,13 +246,29 @@ describe('FSRS JSON state recovery', () => {
     const resumed = scheduler.next(restored, first.card.due, toFsrsRating('good'))
 
     assert.equal(first.card.state, State.Learning)
+    assert.equal(first.card.learning_steps, 1)
     assert.equal(recovered.scheduling.learningSteps, first.card.learning_steps)
     assert.equal(restored.learning_steps, first.card.learning_steps)
     assert.equal(resumed.card.state, direct.card.state)
     assert.equal(resumed.card.learning_steps, direct.card.learning_steps)
     assert.equal(resumed.card.due.getTime(), direct.card.due.getTime())
-    assert.equal(serialized.includes('elapsed_days'), false)
-    assert.equal(serialized.includes('Date'), false)
+
+    // 严格往返：任何字段丢失、被截断或从 number 变成 ISO 字符串都会在这里失败。
+    assert.deepStrictEqual(recovered, persisted)
+    assert.deepEqual(Object.keys(recovered.review).sort(), [
+      'dueAt',
+      'lapseCount',
+      'lastReviewedAt',
+      'phase',
+      'reviewCount',
+      'wordId',
+    ])
+    assert.deepEqual(Object.keys(recovered.scheduling).sort(), [
+      'difficulty',
+      'learningSteps',
+      'scheduledDays',
+      'stability',
+    ])
     assert.equal(typeof recovered.review.dueAt, 'number')
     assert.equal(typeof recovered.review.lastReviewedAt, 'number')
     assert.equal(Object.keys(recovered.review).some(key => key in recovered.scheduling), false)

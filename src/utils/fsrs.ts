@@ -1,9 +1,10 @@
 import { Rating as FsrsRating, generatorParameters, State } from 'ts-fsrs'
+import type { FSRSParameters } from 'ts-fsrs'
 
 // @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
 import type { FsrsParametersSnapshot } from '../types/fsrs'
-import type { Rating, ReviewPhase } from '../types/review'
+import type { Rating, ReviewPhase, Timestamp } from '../types/review'
 
 const RATING_MAP = Object.freeze({
   again: FsrsRating.Again,
@@ -38,7 +39,20 @@ export function createFsrsParametersSnapshot(): FsrsParametersSnapshot {
   }
 }
 
-export function timestampToDate(value: unknown): Date {
+// 参数快照是持久化侧的形态，这里把它原样喂回调度库，避免升级后静默改用新版默认参数。
+export function toFsrsParameters(snapshot: FsrsParametersSnapshot): FSRSParameters {
+  return generatorParameters({
+    request_retention: snapshot.requestRetention,
+    maximum_interval: snapshot.maximumInterval,
+    w: [...snapshot.weights],
+    enable_fuzz: snapshot.enableFuzz,
+    enable_short_term: snapshot.enableShortTerm,
+    learning_steps: [...snapshot.learningSteps],
+    relearning_steps: [...snapshot.relearningSteps],
+  })
+}
+
+export function timestampToDate(value: Timestamp): Date {
   if (
     typeof value !== 'number'
     || !Number.isSafeInteger(value)
