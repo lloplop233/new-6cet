@@ -27,3 +27,4 @@ stats.html
 .history
 .impeccable/
 .worktrees/
+.pnpm-store/
