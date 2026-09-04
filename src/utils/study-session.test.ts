@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 
 import { MOCK_VOCABULARY } from '../constants/mock-vocabulary.ts'
 import type { Word, WordId } from '../types/word'
-import { buildStudyQueue, createStudySession, currentWordId, isSessionFinished } from './study-session.ts'
+import { buildStudyQueue, createStudySession, currentWordId, isSessionFinished, rateWord } from './study-session.ts'
 
 const NOW = 1_788_105_600_000
 
@@ -140,5 +140,64 @@ describe('currentWordId / isSessionFinished', () => {
       const probe = { ...session, currentIndex: index }
       assert.equal(isSessionFinished(probe), currentWordId(probe) === null)
     }
+  })
+})
+
+describe('rateWord', () => {
+  const queue = buildStudyQueue(MOCK_VOCABULARY)
+  const session = createStudySession({ id: 's1', mode: 'flashcard', queue, startedAt: NOW })
+
+  it('records one result and advances exactly one step', () => {
+    const next = rateWord(session, queue[0]!, 'good', NOW + 1000)
+
+    assert.equal(Object.keys(next.results).length, 1)
+    assert.deepEqual(next.results[queue[0]], { wordId: queue[0], rating: 'good', ratedAt: NOW + 1000 })
+    assert.equal(next.currentIndex, 1)
+    assert.equal(next.status, 'active')
+    assert.equal(next.completedAt, null)
+    assert.equal(next.updatedAt, NOW + 1000)
+  })
+
+  it('never double-counts the same word', () => {
+    const first = rateWord(session, queue[0]!, 'good', NOW + 1000)
+    const second = rateWord(first, queue[0]!, 'hard', NOW + 2000)
+
+    assert.equal(second, first)
+    assert.equal(Object.keys(second.results).length, 1)
+    assert.equal(second.results[queue[0]]?.rating, 'good')
+    assert.equal(second.currentIndex, 1)
+  })
+
+  it('rates the whole queue without skipping or repeating words', () => {
+    let current = session
+    for (let index = 0; index < queue.length; index++) {
+      const rating = index % 3 === 0 ? 'good' : index % 3 === 1 ? 'hard' : 'again'
+      current = rateWord(current, queue[index]!, rating, NOW + index)
+    }
+
+    assert.equal(Object.keys(current.results).length, queue.length)
+    assert.equal(current.currentIndex, queue.length)
+    assert.equal(current.status, 'completed')
+    assert.equal(current.completedAt, NOW + queue.length - 1)
+    assert.equal(isSessionFinished(current), true)
+    assert.equal(currentWordId(current), null)
+    for (const wordId of queue)
+      assert.ok(current.results[wordId] !== undefined)
+  })
+
+  it('rejects a word that is not at the current position', () => {
+    assert.throws(() => rateWord(session, queue[1]!, 'good', NOW), /not the current word/i)
+  })
+
+  it('rejects rating past the end of the queue', () => {
+    const finished = { ...session, currentIndex: queue.length, status: 'completed' as const, completedAt: NOW }
+    assert.throws(() => rateWord(finished, queue[0]!, 'good', NOW), /completed session|past the end/i)
+  })
+
+  it('does not mutate the original session', () => {
+    const snapshot = JSON.stringify(session)
+    rateWord(session, queue[0]!, 'good', NOW + 1000)
+
+    assert.equal(JSON.stringify(session), snapshot)
   })
 })

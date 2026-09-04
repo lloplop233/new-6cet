@@ -1,5 +1,5 @@
 import type { StudyMode, StudySession } from '../types/study'
-import type { Timestamp } from '../types/review'
+import type { Rating, Timestamp } from '../types/review'
 import type { Word, WordId } from '../types/word'
 
 /**
@@ -48,4 +48,33 @@ export function currentWordId(session: StudySession): WordId | null {
 /** 会话是否已走完队列。 */
 export function isSessionFinished(session: StudySession): boolean {
   return session.currentIndex >= session.queue.length
+}
+
+/**
+ * 评分并推进：记录评分、前进一步、队列走完时置 completed。
+ * 幂等——对已评词二次调用返回原会话，UI 连点不会重复计分。
+ * 不可变——返回新会话对象，原对象保持原样。
+ */
+export function rateWord(session: StudySession, wordId: WordId, rating: Rating, ratedAt: Timestamp): StudySession {
+  if (session.results[wordId] !== undefined)
+    return session
+  if (session.status !== 'active')
+    throw new Error('Cannot rate a word in a completed session')
+  if (session.currentIndex >= session.queue.length)
+    throw new Error('Cannot rate past the end of the queue')
+  if (session.queue[session.currentIndex] !== wordId)
+    throw new Error(`Word ${wordId} is not the current word at index ${session.currentIndex}`)
+
+  const finished = session.currentIndex + 1 >= session.queue.length
+  return {
+    ...session,
+    currentIndex: session.currentIndex + 1,
+    results: {
+      ...session.results,
+      [wordId]: { wordId, rating, ratedAt },
+    },
+    status: finished ? 'completed' : 'active',
+    updatedAt: ratedAt,
+    completedAt: finished ? ratedAt : null,
+  }
 }
