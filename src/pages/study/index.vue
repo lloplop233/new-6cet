@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { MOCK_RESULT_SEGMENTS, MOCK_STUDY_ITEMS } from '@/constants/mock-words'
 import { MOCK_VOCABULARY } from '@/constants/mock-vocabulary'
-import { buildStudyQueue, createStudySession, currentWordId, isSessionFinished, rateWord } from '@/utils/study-session'
+import { useStudySession } from '@/composables/useStudySession'
+import { currentWordId, isSessionFinished } from '@/utils/study-session'
 import type { Rating } from '@/types/review'
-import type { StudySession } from '@/types/study'
 import type { Word } from '@/types/word'
 
 type VisualRating = 'know' | 'vague' | 'unknown'
@@ -31,16 +31,35 @@ const isQuiz = computed(() => mode.value === 'multiple-choice')
 const quizIndex = ref(0)
 const selectedOption = ref<number>()
 
-// ---- 翻卡：真会话流程（P2-2） ----
-const session = ref<StudySession>(createStudySession({
-  id: `study-${Date.now()}`,
-  mode: 'flashcard',
-  queue: buildStudyQueue(MOCK_VOCABULARY),
-  startedAt: Date.now(),
-}))
+// ---- 翻卡：真会话流程（P2-2），P2-3 起走存储恢复 ----
+const { session, startOrRestore, rate } = useStudySession()
 const isRevealed = ref(false)
 const selectedRating = ref<VisualRating>()
 let advanceTimer: ReturnType<typeof setTimeout> | undefined
+
+// 进入翻卡分支时恢复或新建会话；选择题分支零存储交互。
+// 已有会话时不重启——?mode 来回切换不重置进度；重置翻开/选档状态，
+// 避免恢复后直接停在「已翻开且已选档」。
+watch(isQuiz, (quiz) => {
+  if (quiz)
+    return
+
+  if (session.value === null)
+    startOrRestore('flashcard')
+
+  isRevealed.value = false
+  selectedRating.value = undefined
+
+  // 纵深防御：恢复出已走完的会话时直接送完成页，不渲染卡片
+  const current = session.value
+  if (current !== null && isSessionFinished(current)) {
+    router.replace({
+      path: '/study/complete',
+      query: { mode: 'flashcard' },
+      state: { session: JSON.stringify(current) },
+    })
+  }
+}, { immediate: true })
 
 const vocabularyMap = computed(() => {
   const map = new Map<string, Word>()
@@ -51,7 +70,10 @@ const vocabularyMap = computed(() => {
 })
 
 const currentWord = computed(() => {
-  const wordId = currentWordId(session.value)
+  const current = session.value
+  if (current === null)
+    return null
+  const wordId = currentWordId(current)
   return wordId === null ? null : vocabularyMap.value.get(wordId) ?? null
 })
 
@@ -67,8 +89,12 @@ const queueSegments = computed(() => {
     ))
   }
 
-  return session.value.queue.map((wordId) => {
-    const result = session.value.results[wordId]
+  const current = session.value
+  if (current === null)
+    return []
+
+  return current.queue.map((wordId) => {
+    const result = current.results[wordId]
     if (result === undefined)
       return 'pending'
     if (result.rating === 'good')
@@ -79,12 +105,19 @@ const queueSegments = computed(() => {
   })
 })
 
-const progressTotal = computed(() => isQuiz.value ? MOCK_STUDY_ITEMS.length : session.value.queue.length)
+const progressTotal = computed(() => {
+  if (isQuiz.value)
+    return MOCK_STUDY_ITEMS.length
+  return session.value?.queue.length ?? 0
+})
 // 末词评完的反馈期内 currentIndex 已到 length，计数钳在 total，避免闪现 21/20。
 const progressIndex = computed(() => {
   if (isQuiz.value)
     return quizIndex.value
-  return Math.min(session.value.currentIndex, session.value.queue.length - 1)
+  const current = session.value
+  if (current === null)
+    return 0
+  return Math.min(current.currentIndex, current.queue.length - 1)
 })
 
 function scheduleAdvance(delay: number) {
@@ -99,14 +132,15 @@ function chooseRating(visual: VisualRating) {
     return
 
   selectedRating.value = visual
-  const wordId = currentWordId(session.value)
+  const current = session.value
+  if (current === null)
+    return
+
+  const wordId = currentWordId(current)
   if (wordId === null)
     return
 
-  const rating = VISUAL_TO_RATING[visual]
-  const ratedAt = Date.now()
-  const next = rateWord(session.value, wordId, rating, ratedAt)
-  session.value = next
+  rate(wordId, VISUAL_TO_RATING[visual])
   scheduleAdvance(FLASHCARD_ADVANCE_DELAY)
 }
 
@@ -143,8 +177,9 @@ function goNext() {
 
   // 评分已推进 currentIndex；走完整个队列（而不是最后一词被评时）才收尾，
   // 否则末词永不显示（off-by-one）。
-  if (isSessionFinished(session.value)) {
-    router.push({ path: '/study/complete', query: { mode: 'flashcard' }, state: { session: JSON.stringify(session.value) } })
+  const current = session.value
+  if (current !== null && isSessionFinished(current)) {
+    router.push({ path: '/study/complete', query: { mode: 'flashcard' }, state: { session: JSON.stringify(current) } })
     return
   }
 

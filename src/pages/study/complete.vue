@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { MOCK_RESULT_SEGMENTS } from '@/constants/mock-words'
+import { readPersistedSession } from '@/composables/useStudySession'
 import type { StudySession } from '@/types/study'
 import type { QueueSegment } from '@/components/word/QueueBar.vue'
 
@@ -11,8 +12,15 @@ const mode = computed(() => route.query.mode === 'multiple-choice'
   : 'flashcard')
 const isQuiz = computed(() => mode.value === 'multiple-choice')
 
-// 翻卡模式的会话通过路由 state 以 JSON 传入（P2-2 决策：内存传递，持久化属 P2-3）。
+// 数据源三级：存储里的已完成会话（P2-3 D3，刷新后统计仍在）→ 路由 state
+// （P2-2，无 localStorage 环境的降级）→ 空态。选择题分支保持 V0 Mock，不读存储。
 const session = computed<StudySession | null>(() => {
+  if (!isQuiz.value) {
+    const persisted = readPersistedSession('flashcard')
+    if (persisted !== null && persisted.status === 'completed')
+      return persisted
+  }
+
   const state = history.state as { session?: string } | null
   if (typeof state?.session !== 'string')
     return null

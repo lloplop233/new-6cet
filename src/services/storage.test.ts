@@ -3,8 +3,11 @@ import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
 import { APP_VERSION, DEFAULT_SETTINGS, SCHEMA_VERSION, STORAGE_KEY } from '../constants/storage.ts'
+import { MOCK_VOCABULARY } from '../constants/mock-vocabulary.ts'
 import { createDefaultEnvelope, getBrowserStorage, loadState, saveState } from './storage.ts'
 import { createFsrsParametersSnapshot } from '../utils/fsrs.ts'
+import { planSessionRecovery, withActiveSession } from '../utils/session-recovery.ts'
+import { buildStudyQueue, createStudySession, rateWord } from '../utils/study-session.ts'
 import type { LoadFailureReason, Migration, PersistedEnvelope, StorageLike } from '../types/storage'
 import type { Timestamp } from '../types/review'
 
@@ -474,5 +477,75 @@ describe('storage metadata bindings', () => {
     const storage = getBrowserStorage()
 
     assert.ok(storage === null || typeof storage.getItem === 'function')
+  })
+})
+
+// P2-3 会话恢复对存储协议的调用方契约：纯函数产出的信封必须能通过已冻结的校验，
+// 失败路径必须保持零写入。追加块，与上方 70 项互不干扰。
+describe('session recovery integration', () => {
+  function makeRatedSession(): ReturnType<typeof createStudySession> {
+    const queue = buildStudyQueue(MOCK_VOCABULARY)
+    let session = createStudySession({ id: 'rt-1', mode: 'flashcard', queue, startedAt: NOW })
+    session = rateWord(session, queue[0]!, 'good', NOW + 1000)
+    session = rateWord(session, queue[1]!, 'again', NOW + 2000)
+    return session
+  }
+
+  // 旧 scheduler 元数据非默认值：withActiveSession 若顺手刷新它，断言会变红。
+  function makeLegacySchedulerEnvelope(): PersistedEnvelope {
+    const envelope = createDefaultEnvelope()
+    envelope.scheduler = {
+      algorithm: 'FSRS-5',
+      library: 'ts-fsrs',
+      libraryVersion: '5.0.0',
+      parameters: {
+        requestRetention: 0.85,
+        maximumInterval: 36_500,
+        weights: [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        enableFuzz: true,
+        enableShortTerm: false,
+        learningSteps: ['5m'],
+        relearningSteps: ['30m'],
+      },
+    }
+    return envelope
+  }
+
+  it('round-trips an envelope written by withActiveSession through the frozen validation', () => {
+    const session = makeRatedSession()
+    const base = makeLegacySchedulerEnvelope()
+    const updated = withActiveSession(base, session, NOW)
+    assert.equal(updated.savedAt, NOW)
+
+    const { storage } = createMemoryStorage()
+    assert.deepEqual(saveState(storage, updated), { status: 'saved' })
+
+    const result = loadState(storage)
+    assert.ok(result.status === 'loaded')
+    assert.deepEqual(result.envelope, updated)
+    assert.deepEqual(result.envelope.data.activeSession, session)
+    assert.deepEqual(result.envelope.scheduler, base.scheduler)
+    assert.equal(base.data.activeSession, null)
+    assert.equal(base.savedAt, 0)
+  })
+
+  it('keeps a failed load entirely write-free through planSessionRecovery', () => {
+    const future = JSON.stringify({ schemaVersion: SCHEMA_VERSION + 1 })
+    const { storage, writeCount } = createMemoryStorage({ [STORAGE_KEY]: future })
+
+    const loadResult = loadState(storage)
+    assert.ok(loadResult.status === 'error')
+    assert.equal(loadResult.reason, 'future-version')
+
+    const plan = planSessionRecovery({
+      loadResult,
+      library: MOCK_VOCABULARY,
+      mode: 'flashcard',
+      sessionId: 'plan-1',
+      now: NOW,
+    })
+
+    assert.equal(plan.persist, false)
+    assert.equal(writeCount(), 0)
   })
 })
