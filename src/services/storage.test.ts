@@ -2,11 +2,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { APP_VERSION, DEFAULT_SETTINGS, SCHEMA_VERSION, STORAGE_KEY } from '../constants/storage.ts'
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { createDefaultEnvelope, getBrowserStorage, loadState, saveState } from './storage.ts'
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { createFsrsParametersSnapshot } from '../utils/fsrs.ts'
 import type { LoadFailureReason, Migration, PersistedEnvelope, StorageLike } from '../types/storage'
 import type { Timestamp } from '../types/review'

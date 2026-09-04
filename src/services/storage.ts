@@ -8,11 +8,9 @@ import type {
 import type { Rating, ReviewPhase, Timestamp } from '../types/review'
 import type { SessionStatus, StudyMode } from '../types/study'
 
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { FSRS_ALGORITHM, FSRS_LIBRARY, FSRS_LIBRARY_VERSION, MAX_TIMESTAMP } from '../constants/fsrs.ts'
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
+import { FSRS_ALGORITHM, FSRS_LIBRARY, FSRS_LIBRARY_VERSION } from '../constants/fsrs.ts'
+import { MAX_TIMESTAMP } from '../constants/timestamp.ts'
 import { APP_VERSION, DEFAULT_SETTINGS, SCHEMA_VERSION, STORAGE_KEY } from '../constants/storage.ts'
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { createFsrsParametersSnapshot } from '../utils/fsrs.ts'
 
 type UnknownRecord = Record<string, unknown>

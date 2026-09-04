@@ -1,8 +1,8 @@
 import { Rating as FsrsRating, generatorParameters, State } from 'ts-fsrs'
 import type { FSRSParameters } from 'ts-fsrs'
 
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
+import { FSRS_PARAMETER_OVERRIDES } from '../constants/fsrs.ts'
+import { MAX_TIMESTAMP } from '../constants/timestamp.ts'
 import type { FsrsParametersSnapshot } from '../types/fsrs'
 import type { Rating, ReviewPhase, Timestamp } from '../types/review'
 

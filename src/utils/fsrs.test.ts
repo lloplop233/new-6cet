@@ -5,12 +5,11 @@ import { describe, it } from 'node:test'
 import { createEmptyCard, fsrs, Rating as FsrsRating, FSRSVersion, State } from 'ts-fsrs'
 import type { Card, CardInput } from 'ts-fsrs'
 
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
-import { FSRS_ALGORITHM, FSRS_LIBRARY, FSRS_LIBRARY_VERSION, FSRS_PARAMETER_OVERRIDES, MAX_TIMESTAMP } from '../constants/fsrs.ts'
+import { FSRS_ALGORITHM, FSRS_LIBRARY, FSRS_LIBRARY_VERSION, FSRS_PARAMETER_OVERRIDES } from '../constants/fsrs.ts'
+import { MAX_TIMESTAMP } from '../constants/timestamp.ts'
 
 import type { FsrsSchedulingState } from '../types/fsrs'
 import type { ReviewState } from '../types/review'
-// @ts-expect-error Node.js test runner resolves the native TypeScript module by extension.
 import { createFsrsParametersSnapshot, dateToTimestamp, fromFsrsState, timestampToDate, toFsrsParameters, toFsrsRating, toFsrsState } from './fsrs.ts'
 
 // 21 个 FSRS-6 默认权重的具体值。冻结数值本身，升级依赖若改动任何一位都会在这里失败。
@@ -85,9 +84,10 @@ describe('FSRS dependency contract', () => {
   })
 
   it('runs on the declared Node.js baseline', () => {
-    const major = Number.parseInt(process.versions.node.split('.')[0], 10)
+    const [major, minor] = process.versions.node.split('.').map(Number)
 
-    assert.ok(major >= 20)
+    // 与 package.json engines 的 >=22.23.0 对齐；.ts 扩展导入直跑依赖该基线的 type stripping。
+    assert.ok(major > 22 || (major === 22 && minor >= 23))
   })
 
   it('binds the recorded library metadata to the installed dependency', () => {
@@ -174,6 +174,10 @@ describe('FSRS rating and time boundary', () => {
 
   it('rejects Invalid Date', () => {
     assert.throws(() => dateToTimestamp(new Date(Number.NaN)), RangeError)
+  })
+
+  it('rejects dates before the Unix epoch', () => {
+    assert.throws(() => dateToTimestamp(new Date('1969-12-31T23:59:59.999Z')), RangeError)
   })
 })
 
